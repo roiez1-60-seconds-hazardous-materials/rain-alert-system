@@ -1,0 +1,23 @@
+# Python Dependencies for Rain Alert Dashboard
+# For screenshot capture and image processing
+playwright==1.48.0
+Pillow==11.0.0
+opencv-python==4.10.0.84
+numpy==2.2.1
+
+# For HTTP requests and API
+requests==2.32.3
+aiohttp==3.11.10
+
+# For data processing
+pandas==2.2.3
+
+# For serving static files
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# For scheduled tasks
+apscheduler==3.10.4
+
+# Environment variables
+python-dotenv==1.0.1

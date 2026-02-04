@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת התראות גשם - ישראל</title>
+    
+    <!-- Fonts - Using distinctive Hebrew + English fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Heebo:wght@300;400;600;700;800&family=Alef:wght@400;700&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="rain-animation">
+                <div class="raindrop"></div>
+                <div class="raindrop"></div>
+                <div class="raindrop"></div>
+            </div>
+            <div class="loading-text">טוען נתוני מכ"ם...</div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="dashboard-container">
+        
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-title">
+                    <div class="radar-pulse"></div>
+                    <h1>מערכת התראות גשם</h1>
+                    <div class="subtitle">ניטור גשם בזמן אמת • מדינת ישראל</div>
+                </div>
+                
+                <div class="header-controls">
+                    <div class="source-selector">
+                        <button class="source-btn active" data-source="govmap">
+                            <span class="icon">🇮🇱</span>
+                            <span>GovMap</span>
+                        </button>
+                        <button class="source-btn" data-source="windy">
+                            <span class="icon">🌐</span>
+                            <span>Windy</span>
+                        </button>
+                    </div>
+                    
+                    <div class="update-status">
+                        <div class="status-indicator pulsing"></div>
+                        <span id="lastUpdate">מעדכן...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Alert Banner -->
+        <div id="alertBanner" class="alert-banner" style="display: none;">
+            <div class="alert-content">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-message">
+                    <strong id="alertTitle">התראת גשם כבד</strong>
+                    <p id="alertDetails">זוהה גשם בעוצמה גבוהה באזורים מסוימים</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            
+            <!-- Left Column - Map & Radar -->
+            <div class="map-section">
+                <div class="card radar-card">
+                    <div class="card-header">
+                        <h2>מפת מכ"ם</h2>
+                        <div class="card-actions">
+                            <button class="icon-btn" id="uploadImageBtn" title="העלה תמונת מכ"ם">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </button>
+                            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                            <button class="icon-btn" id="refreshBtn" title="רענן">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M1 4v6h6M23 20v-6h-6"/>
+                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                                </svg>
+                            </button>
+                            <button class="icon-btn" id="fullscreenBtn" title="מסך מלא">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="radarMap" class="radar-map"></div>
+                        <iframe id="windyFrame" class="radar-map" style="display: none;" frameborder="0" allowfullscreen></iframe>
+                        <div class="radar-legend">
+                            <div class="legend-title">עוצמת גשם (מ"מ/שעה)</div>
+                            <div class="legend-items">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: linear-gradient(90deg, #87CEEB 0%, #7CB9E8 100%);"></div>
+                                    <span>0.5-1.5</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: linear-gradient(90deg, #90EE90 0%, #32CD32 100%);"></div>
+                                    <span>1.5-2.5</span>
+                                </div>
+                                <div class="legend-item warning">
+                                    <div class="legend-color" style="background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);"></div>
+                                    <span>2.5-8.0</span>
+                                </div>
+                                <div class="legend-item danger">
+                                    <div class="legend-color" style="background: linear-gradient(90deg, #FF8C00 0%, #FF4500 100%);"></div>
+                                    <span>8.0-15.0</span>
+                                </div>
+                                <div class="legend-item severe">
+                                    <div class="legend-color" style="background: linear-gradient(90deg, #DC143C 0%, #8B0000 100%);"></div>
+                                    <span>15.0+</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Stats & Alerts -->
+            <div class="stats-section">
+                
+                <!-- Current Conditions Card -->
+                <div class="card conditions-card">
+                    <div class="card-header">
+                        <h2>מצב נוכחי</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="conditions-grid">
+                            <div class="condition-item">
+                                <div class="condition-icon yellow-glow">🟡</div>
+                                <div class="condition-details">
+                                    <div class="condition-label">אזהרה</div>
+                                    <div class="condition-value" id="yellowCount">0</div>
+                                    <div class="condition-sublabel">יישובים</div>
+                                </div>
+                            </div>
+                            <div class="condition-item">
+                                <div class="condition-icon orange-glow">🟠</div>
+                                <div class="condition-details">
+                                    <div class="condition-label">סכנה</div>
+                                    <div class="condition-value" id="orangeCount">0</div>
+                                    <div class="condition-sublabel">יישובים</div>
+                                </div>
+                            </div>
+                            <div class="condition-item">
+                                <div class="condition-icon red-glow">🔴</div>
+                                <div class="condition-details">
+                                    <div class="condition-label">חמור</div>
+                                    <div class="condition-value" id="redCount">0</div>
+                                    <div class="condition-sublabel">יישובים</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="coverage-meter">
+                            <div class="meter-label">כיסוי גשם</div>
+                            <div class="meter-bar">
+                                <div class="meter-fill" id="coverageFill" style="width: 0%"></div>
+                            </div>
+                            <div class="meter-value" id="coveragePercent">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Affected Settlements Card -->
+                <div class="card settlements-card">
+                    <div class="card-header">
+                        <h2>יישובים מושפעים</h2>
+                        <div class="settlements-filter">
+                            <button class="filter-btn active" data-level="all">הכל</button>
+                            <button class="filter-btn" data-level="severe">חמור</button>
+                            <button class="filter-btn" data-level="danger">סכנה</button>
+                            <button class="filter-btn" data-level="warning">אזהרה</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="settlementsList" class="settlements-list">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Source Info -->
+                <div class="card source-card">
+                    <div class="card-header">
+                        <h2>מקור נתונים</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="source-info">
+                            <div class="source-badge" id="currentSource">
+                                <span class="badge-icon">🇮🇱</span>
+                                <span class="badge-text">GovMap</span>
+                            </div>
+                            <div class="source-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">עדכון אחרון:</span>
+                                    <span class="detail-value" id="sourceTime">--:--</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">תדירות עדכון:</span>
+                                    <span class="detail-value">כל 10 דקות</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">דיוק:</span>
+                                    <span class="detail-value">±0.5 מ"מ</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p>מערכת התראות גשם בזמן אמת • נתונים מתעדכנים כל 10 דקות</p>
+                    <p class="footer-note">המערכת מנתחת נתוני מכ"ם מ-GovMap ו-Windy</p>
+                </div>
+                <div class="footer-tech">
+                    <span>פותח באמצעות Claude AI</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
